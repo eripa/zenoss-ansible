@@ -1,0 +1,27 @@
+---
+- stat: path=/tmp/jdk-7-linux-x64.rpm
+  register: jdk_file
+
+- name: Download JDK 7 from Oracle
+  command: 'wget --no-cookies --no-check-certificate --header "Cookie: oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/7u55-b13/jdk-7u55-linux-x64.rpm" -O /tmp/jdk-7-linux-x64.rpm'
+  when: jdk_file.stat.exists == false or jdk_file.stat.md5 != '11c0ab0a2ce24cad94a71bcff13b28f9'
+
+- name: Install Oracle JDK 7
+  yum: pkg=/tmp/jdk-7-linux-x64.rpm state=installed
+
+- name: Check current java version to make sure it's correct
+  command: java -version
+  register: java_version
+
+- name: Setup the JDK 7 package using alternatives (if not correct)
+  command: "{{item}}"
+  with_items:
+   - alternatives --install /usr/bin/java java /usr/java/jdk1.7.0_55/jre/bin/java 20000
+   - alternatives --install /usr/bin/jar jar /usr/java/jdk1.7.0_55/bin/jar 20000
+   - alternatives --install /usr/bin/javac javac /usr/java/jdk1.7.0_55/bin/javac 20000
+   - alternatives --install /usr/bin/javaws javaws /usr/java/jdk1.7.0_55/jre/bin/javaws 20000
+   - alternatives --set java /usr/java/jdk1.7.0_55/jre/bin/java
+   - alternatives --set javaws /usr/java/jdk1.7.0_55/jre/bin/javaws
+   - alternatives --set javac /usr/java/jdk1.7.0_55/bin/javac
+   - alternatives --set jar /usr/java/jdk1.7.0_55/bin/jar
+  when: java_version.stderr.find('OpenJDK') != -1

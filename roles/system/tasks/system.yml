@@ -1,0 +1,25 @@
+---
+- name: Install epel repo
+  yum: pkg=http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm state=installed
+
+- name: Install Remi repo
+  yum: pkg=http://rpms.famillecollet.com/enterprise/remi-release-6.rpm state=installed
+
+- yum: name=libselinux-python state=present
+
+- name: Install Zenoss dependencies
+  yum: pkg=http://deps.zenoss.com/yum/zenossdeps-4.2.x-1.el6.noarch.rpm state=installed
+
+- name: Deactivate SELINUX in /etc/sysconfig/selinux
+  lineinfile: dest=/etc/selinux/config regexp=^SELINUX= line=SELINUX=disabled
+  register: selinux
+
+- name: Disable SELINUX if it was enabled in config file
+  command: setenforce Permissive
+  when: selinux|changed
+
+- name: Disable firewall
+  service: name=iptables state=stopped enabled=no
+## TODO ##
+#  Firewall rules should be added instead of just stopping iptables
+#  Maybe like this?  http://sharknet.us/2014/01/14/automating-iptables-with-ansible/

@@ -1,0 +1,6 @@
+# Vagrant/virutalbox terminal servers
+
+- hosts: vagrant
+  roles:
+    - system
+    - zenoss

@@ -1,0 +1,7 @@
+---
+- include: system.yml
+- include: java.yml
+- include: mysql.yml
+
+# - name: Print stuff
+#   debug: msg="{{ansible_lsb.major_release}}"

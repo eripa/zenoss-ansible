@@ -1,0 +1,68 @@
+---
+- name: Download Zenoss RPM
+  get_url: dest=/tmp/zenoss_core-4.2.4-1897.el6.x86_64.rpm url=http://sourceforge.net/projects/zenoss/files/zenoss-4.2/zenoss-4.2.4/4.2.4-1897/zenoss_core-4.2.4-1897.el6.x86_64.rpm/download
+
+- name: Install Zenoss RPM
+  yum: pkg=/tmp/zenoss_core-4.2.4-1897.el6.x86_64.rpm state=installed
+
+- name: Enable required services
+  service: name="{{item}}" state=started enabled=yes
+  with_items:
+   - memcached
+   - rabbitmq-server
+   - snmpd
+
+- name: Check current java version to make sure it's correct
+  command: java -version
+  register: java_version
+- name: Setup the JDK 7 package using alternatives (if not correct)
+  command: "{{item}}"
+  with_items:
+   - alternatives --install /usr/bin/java java /usr/java/jdk1.7.0_55/jre/bin/java 20000
+   - alternatives --install /usr/bin/jar jar /usr/java/jdk1.7.0_55/bin/jar 20000
+   - alternatives --install /usr/bin/javac javac /usr/java/jdk1.7.0_55/bin/javac 20000
+   - alternatives --install /usr/bin/javaws javaws /usr/java/jdk1.7.0_55/jre/bin/javaws 20000
+   - alternatives --set java /usr/java/jdk1.7.0_55/jre/bin/java
+   - alternatives --set javaws /usr/java/jdk1.7.0_55/jre/bin/javaws
+   - alternatives --set javac /usr/java/jdk1.7.0_55/bin/javac
+   - alternatives --set jar /usr/java/jdk1.7.0_55/bin/jar
+  when: java_version.stderr.find('OpenJDK') != -1
+
+- name: Download ZenUp RPM
+  get_url: url=http://wiki.zenoss.org/download/core/zenup/zenup-1.0.0.131-1.el6.x86_64.rpm dest=/tmp/zenup-1.0.0.131-1.el6.x86_64.rpm
+
+- name: Install ZenUp
+  yum: pkg=/tmp/zenup-1.0.0.131-1.el6.x86_64.rpm state=installed
+
+- name: Download prestine Zenoss package
+  get_url: dest=/tmp/zenoss_core-4.2.4.el6-pristine.tgz url=http://wiki.zenoss.org/download/core/zenup/zenoss_core-4.2.4.el6-pristine.tgz
+
+- name: Check ZenUp status
+  command: /opt/zenup/bin/zenup status
+  register: zenup_status
+
+- name: Register Zenoss Core 4.2.4 with ZenUp with prestine package
+  command: /opt/zenup/bin/zenup init /tmp/zenoss_core-4.2.4.el6-pristine.tgz /opt/zenoss
+  sudo_user: zenoss
+  environment:
+    ZENHOME: /opt/zenoss
+    INSTANCE_HOME: /opt/zenoss
+    PYTHONPATH: /opt/zenoss/lib/python
+    LD_LIBRARY_PATH: /opt/zenoss/lib
+  when: zenup_status.stdout.find('zenoss-core-4.2.4') == -1
+
+- name: Start Zenoss core
+  service: name=zenoss state=started
+
+- name: Stop Zenoss core
+  service: name=zenoss state=stopped
+
+- name: Get latest recommended patch set (RPS) zenoss_core-4.2.4-SP464.zup
+  get_url: dest=/tmp/ url=http://sourceforge.net/projects/zenoss/files/zenoss-4.2/zenoss-4.2.4/updates/2014-04-03/zenoss_core-4.2.4-SP464.zup/download
+
+- name: Install RPS
+  sudo_user: zenoss
+  shell: /opt/zenup/bin/zenup install /tmp/zenoss_core-4.2.4-SP464.zup
+
+- name: Start Zenoss core
+  service: name=zenoss state=started enabled=yes
